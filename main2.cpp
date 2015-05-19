@@ -4,7 +4,7 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
 #include<opencv2/highgui/highgui.hpp>
-#include"functions.cpp"
+
 using namespace std;
 using namespace cv;
 
@@ -26,20 +26,12 @@ int main(int argc, char *argv[])
 	
 	// Read stream from video
 	// Set the resolution to 320x240
-	/*
-    cv::VideoCapture cap("/home/chiahao/video/13.avi");
+	cv::VideoCapture cap("/home/chiahao/video/13.avi");
 	const int HEIGHT = 240;
 	const int WIDTH = 320;
 	cap.set(CV_CAP_PROP_FRAME_HEIGHT, HEIGHT);
 	cap.set(CV_CAP_PROP_FRAME_WIDTH, WIDTH);
-	*/
-    CvCapture *pCap;
-    pCap = cvCaptureFromCAM(0);
-    cvSetCaptureProperty(pCap, CV_CAP_PROP_FRAME_WIDTH, 640);
-    cvSetCaptureProperty(pCap, CV_CAP_PROP_FRAME_HEIGHT, 480);
-    const int HEIGHT = 240;
-    const int WIDTH = 320;
-    
+	
 	// Background Subtraction
 	/*************************
 	* Parameters:
@@ -54,13 +46,11 @@ int main(int argc, char *argv[])
 	for(;;)
 	{
 		// Check if stream is correctly loaded
-		/*if(!cap.read(frame))
+		if(!cap.read(frame))
 		{
 			cout << "Failure" << endl;
 			return -1;
-		}*/
-        frame = cvQueryFrame(pCap);
-        
+		}
 		cv::blur(frame,blurred,cv::Size(8,8));
 		
 		// Get the background image
@@ -111,15 +101,7 @@ int main(int argc, char *argv[])
 		line(thresholded, Point(0, 0), Point(0, thresholded.rows-1), color_white, 3, 8, 0);
 		line(thresholded, Point(0, thresholded.rows-1), Point(thresholded.cols-1, thresholded.rows-1), color_white, 3, 8, 0);
 		line(thresholded, Point(thresholded.cols-1, 0), Point(thresholded.cols-1, thresholded.rows-1), color_white, 3, 8, 0);
-        
-        // Find the extreme outer contour
-        /********************
-         * Parameters:
-         * InputOutputArray src
-         * OutputArrayOfArrays contours
-         * int mode: CV_RETR_EXTERNAL, CV_RETR_LIST, CV_RETR_CCOMP, CV_RETR_TREE
-         * int method: CV_CHAIN_APPROX_NONE, CV_CHAIN_APPROX_SIMPLE
-         *******************/
+
 		cv::findContours(thresholded.clone(),contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
 
 		std::vector<std::vector<cv::Point> > intruders;
@@ -141,8 +123,7 @@ int main(int argc, char *argv[])
 
 		///////////////////
 
-		contours.clear();
-        intruders.clear();
+		contours.clear();  intruders.clear();
 
 		cv::findContours(mask, contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
 
@@ -159,7 +140,7 @@ int main(int argc, char *argv[])
 
 		cv::cvtColor(mask, mask, CV_RGB2GRAY);
 
-        // Distance transform
+
 		cv::Mat dist;
 		cv::distanceTransform(mask.clone(), dist, CV_DIST_L2, 0);
 
@@ -168,9 +149,9 @@ int main(int argc, char *argv[])
 		cv::normalize(dist, dist, 0, 255, cv::NORM_MINMAX);
 
 		dist.convertTo(dist8u, CV_8UC4);
-        
-        cv::Point *tmp_max_xy = new cv::Point[intruders.size()];
-        cv::Point *tmp_min_xy = new cv::Point[intruders.size()];
+
+		cv::Point max_xy[intruders.size()];
+		cv::Point min_xy[intruders.size()];
 
 		for(int i = 0; i < intruders.size(); i++)
 		{
@@ -183,26 +164,26 @@ int main(int argc, char *argv[])
 			//max
 			int tempy2 = 0;
 
-			tmp_max_xy[i] = cv::Point(0, 0);
-			tmp_min_xy[i] = cv::Point(0, 0);
+			max_xy[i] = cv::Point(0, 0);
+			min_xy[i] = cv::Point(0, 0);
 
 			for(int j = 0; j < intruders[i].size(); j++)
 			{
 				if(intruders[i][j].y < tempy1)
 				{
-					tempy1 = tmp_min_xy[i].y = intruders[i][j].y;
+					tempy1 = min_xy[i].y = intruders[i][j].y;
 				}
 				if(intruders[i][j].y > tempy2)
 				{
-					tempy2 = tmp_max_xy[i].y = intruders[i][j].y;
+					tempy2 = max_xy[i].y = intruders[i][j].y;
 				}
 				if(intruders[i][j].x < tempx1)
 				{
-					tempx1 = tmp_min_xy[i].x = intruders[i][j].x;
+					tempx1 = min_xy[i].x = intruders[i][j].x;
 				}
 				if(intruders[i][j].x > tempx2)
 				{
-					tempx2 = tmp_max_xy[i].x = intruders[i][j].x;
+					tempx2 = max_xy[i].x = intruders[i][j].x;
 				}
 			}
 
@@ -211,24 +192,60 @@ int main(int argc, char *argv[])
 			cv::ellipse(frame, cv::Point(tempx1/2 + tempx2/2, tempy1/2 + tempy2/2), cv::Size(5, 5), 0, 0, 360, cv::Scalar(0, 0, 255), -1, 8);
 		}
 
-		int Xmax = 0, Ymax = 0;
+		int Xmax = 0, Ymax = 0, Vmax = 0;
 		if(intruders.size() != 0)
 		{
-			Xmax = (tmp_max_xy[0].x + tmp_min_xy[0].x) / 2;
-			Ymax = (tmp_max_xy[0].y + tmp_min_xy[0].y) / 2;
+			Xmax = (max_xy[0].x + min_xy[0].x) / 2;
+			Ymax = (max_xy[0].y + min_xy[0].y) / 2;
 		}
 
-        //find LMPs in DistanceTransform-Mat
 		cv::Mat newdist = dist.clone();
-        bool **light;
-        light = new bool*[HEIGHT];
-        for(int i=0;i<HEIGHT;i++)
-            light[i] = new bool[WIDTH];
-        cv::Point *lightPoints;
-        
-        find_LMP(HEIGHT,WIDTH,light,newdist,lightPoints);
+		bool light[HEIGHT][WIDTH] = {false};
+		unsigned int count = 0;
+
+		for(int i = 1; i < HEIGHT - 1; i++)
+		{
+			for(int j = 1; j < WIDTH - 1; j++)
+			{
+				int temp1 = newdist.at<int>(i-1, j-1);
+				int temp2 = newdist.at<int>(i-1, j);
+				int temp3 = newdist.at<int>(i-1, j+1);
+				int temp4 = newdist.at<int>(i, j-1);
+				int temp5 = newdist.at<int>(i, j);
+				int temp6 = newdist.at<int>(i, j+1);
+				int temp7 = newdist.at<int>(i+1, j-1);
+				int temp8 = newdist.at<int>(i+1, j);
+				int temp9 = newdist.at<int>(i+1, j+1);
+				if(temp5 >= temp1 && temp5 >= temp2 && temp5 >= temp3 &&
+					temp5 >= temp4 && temp5 >= temp6 && temp5 >= temp7 &&
+					temp5 >= temp8 && temp5 >= temp9 && temp5 >= 40)
+					{
+						light[i][j] = true;
+						count++;
+					}
+				else
+				{
+					light[i][j] = false;
+				}
+			}
+		}
+
+		cv::Point *lightPoints = new cv::Point[count];
+		int k = 0;
+		for(int i = 0; i < HEIGHT; i++)
+		{
+			for(int j = 0; j < WIDTH; j++)
+			{
+				if(light[i][j])
+				{
+					lightPoints[k++] = cv::Point(j, i);
+					//cv::ellipse(newdist, cv::Point(j, i), cv::Size(5, 5), 0, 0, 360, cv::Scalar(255), -1, 8);
+				}
+			}
+		}
 
 		cv::Point head;
+
 		cv::Point hip;
 
 		for(int i = 0; i < 10; i++)
@@ -244,11 +261,9 @@ int main(int argc, char *argv[])
 				break;
 			}
 		}
-        delete[] lightPoints;
-        lightPoints = NULL;
-        
+
 		int left_x = 0, right_x = 0;
-		int limit_left_dis = 0, limit_right_dis = 0;
+		int limit_left_dis, limit_right_dis;
 
 		for(int i = Xmax; i >= 0; i--)
 		{
@@ -291,17 +306,13 @@ int main(int argc, char *argv[])
 
 		cv::ellipse(frame, cv::Point(left_x+40, hip.y), cv::Size(5, 5), 0, 0, 360, cv::Scalar(255, 255, 0), -1, 8);
 		cv::ellipse(frame, cv::Point(right_x-40, hip.y), cv::Size(5, 5), 0, 0, 360, cv::Scalar(255, 255, 0), -1, 8);
-        
-        String skeletonWindowName = "Skeleton", maskWindowName = "Mask";
-        
-		cv::imshow(skeletonWindowName,frame);
-		cv::imshow(maskWindowName, mask);
+
+		cv::imshow("Skeleton",frame);
+		cv::imshow("mask", mask);
+		delete []lightPoints;
 
 		if(cv::waitKey(30) >= 0) break;
 	}
-	
-    //cap.release();
-    cvReleaseCapture(&pCap);
-    
-    return 0;
+	cap.release();
+	return 0;
 }
