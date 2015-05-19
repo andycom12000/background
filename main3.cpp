@@ -4,7 +4,7 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/imgproc/imgproc.hpp>
 #include<opencv2/highgui/highgui.hpp>
-#include"function.cpp"
+#include"functions.cpp"
 using namespace std;
 using namespace cv;
 
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
      * float varThreshold: threshold on the squared Mahalanobis distance to describe the variance
      * bool bShadowDection: whether shadow detection should be enabled
      *************************/
-    cv::BackgroundSubtractorMOG2 bgs(60, 15, false);
+    cv::BackgroundSubtractorMOG2 bgs(60, 15, true);
     
     std::vector<std::vector<cv::Point> > contours;
     
